@@ -99,7 +99,33 @@ def get_prediction(symbol):
         }
     return result
 
-
+@app.route('/get_recommendations',methods=['GET'])
+def get_recommendations():
+    filter = {"date":(datetime.datetime.now()+datetime.timedelta(days=1)).strftime("%Y-%m-%d")}
+    docs = collection.find(filter)
+    if not docs:
+        result = {
+            "status":"error",
+            "message":"No predictions available for today"
+        }
+        return result
+    max_returns = []
+    for doc in docs:
+        ltp = get_ltp(doc["symbol"])
+        pct_change = abs(doc["predicted_price"] - ltp/ltp)
+        max_returns.append({"symbol":doc["symbol"],"pct_change":pct_change, "predicted_price":doc["predicted_price"]})
+    recs = sorted(max_returns,key = lambda x: x["pct_change"], reverse=True)
+    print(recs)
+    recommendations = []
+    for idx in range(3):
+        if idx >= len(recs):
+            break
+        recommendations.append({"Symbol":recs[idx]["symbol"],"Recommended price":recs[idx]["predicted_price"], "pct_change":recs[idx]["pct_change"]})
+    result = {
+        "status": "successful",
+        "recommendations": recommendations
+    }
+    return result
 
 if __name__ == "__main__":
     app.run(debug=True)
